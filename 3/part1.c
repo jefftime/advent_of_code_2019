@@ -174,41 +174,27 @@ void print_closest_intersection(
 
   if (!n_intersections) return;
   if (!intersections) return;
-  printf("n_intersections: %lu\n", n_intersections);
   while (--n_intersections) {
     struct point cur;
 
     cur = *intersections++;
-    printf(
-      "cur:( % 5d % 5d ): % 5d  ||  min:( % 5d % 5d ): % 5d\n",
-      cur.x,
-      cur.y,
-      abs(cur.x) + abs(cur.y),
-      min.x,
-      min.y,
-      abs(min.x) + abs(min.y)
-    );
     if ((abs(cur.x) + abs(cur.y)) < (abs(min.x) + abs(min.y))) {
       if (abs(cur.x) + abs(cur.y) > 0) min = cur;
     }
   }
-  printf("( % 4d % 4d )\n", min.x, min.y);
+  printf("( % 4d % 4d ) -> %u\n", min.x, min.y, abs(min.x) + abs(min.y));
 }
 
 int main(int arg, char **argv) {
   char **first_inputs = NULL, **second_inputs = NULL;
   char *first, *second;
-  size_t i, first_size, second_size, n_first, n_second;
+  size_t first_size, second_size, n_first, n_second;
   size_t n_first_lines, n_second_lines, n_intersections = 0;
   struct line *first_lines = NULL, *second_lines = NULL;
   struct point *intersections;
 
   first = read_input("../3/first.txt", &first_size);
   second = read_input("../3/second.txt", &second_size);
-  /* first = malloc(2048); */
-  /* second = malloc(2048); */
-  /* strcpy(first, "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51"); */
-  /* strcpy(second, "U98,R91,D20,R16,D67,R40,U7,R15,U6,R7"); */
   if (!first) return -1;
   if (!second) return -1;
   if (get_input_list(first, &n_first, &first_inputs)) return -1;
@@ -243,9 +229,6 @@ int main(int arg, char **argv) {
     return -1;
   }
   print_closest_intersection(n_intersections, intersections);
-  /* for (i = 0; i < n_intersections; ++i) { */
-  /*   printf("( % 4d % 4d )\n", intersections[i].x, intersections[i].y); */
-  /* } */
   free(intersections);
   free(first_lines);
   free(second_lines);
