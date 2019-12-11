@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 struct point {
   int x;
@@ -11,6 +12,24 @@ struct line {
   struct point p1;
   struct point p2;
 };
+
+char *read_input(char *filename, size_t *out_size) {
+  char *output;
+  FILE *f;
+  size_t size;
+
+  if (!filename) return NULL;
+  f = fopen(filename, "rb");
+  fseek(f, 0, SEEK_END);
+  size = (size_t) ftell(f);
+  fseek(f, 0, SEEK_SET);
+  output = malloc(size);
+  if (!output) return NULL;
+  fread(output, 1, size, f);
+  fclose(f);
+  *out_size = size;
+  return output;
+}
 
 size_t get_n_inputs(char *input) {
   size_t n_inputs;
@@ -74,15 +93,31 @@ int calc_line_segs(
   return 0;
 }
 
+void set_limits(int a, int b, int *out_min, int *out_max) {
+  if (!out_max) return;
+  if (!out_min) return;
+  if (a < b) {
+    *out_min = a;
+    *out_max = b;
+  } else {
+    *out_min = b;
+    *out_max = a;
+  }
+}
+
 int intersection(struct line *a, struct line *b, struct point *out_p) {
+  int xmax, xmin, ymax, ymin;
+
   if (!a) return 0;
   if (!b) return 0;
   /* Check if line a is horizontal or vertical */
   if ((a->p1.y - a->p2.y) == 0) {
     /* Here, a is horizontal */
     if ((b->p1.y - b->p2.y) == 0) return 0;
-    if ((a->p1.y >= b->p2.y) && (a->p1.y <= b->p1.y)) {
-      if ((b->p1.x >= a->p1.x) && (b->p1.x <= a->p2.x)) {
+    set_limits(a->p1.x, a->p2.x, &xmin, &xmax);
+    set_limits(b->p1.y, b->p2.y, &ymin, &ymax);
+    if (a->p1.y >= ymin && a->p1.y <= ymax) {
+      if (b->p1.x >= xmin && b->p2.x <= xmax) {
         if (!out_p) return 1;
         out_p->x = b->p1.x;
         out_p->y = a->p1.y;
@@ -92,8 +127,10 @@ int intersection(struct line *a, struct line *b, struct point *out_p) {
   } else {
     /* Here, a is vertical */
     if ((b->p1.x - b->p2.x) == 0) return 0;
-    if ((a->p1.x >= b->p2.x) && (a->p1.x <= b->p1.x)) {
-      if ((b->p1.y >= a->p1.y) && (b->p1.y <= a->p2.y)) {
+    set_limits(a->p1.y, a->p2.y, &ymin, &ymax);
+    set_limits(b->p1.x, b->p2.x, &xmin, &xmax);
+    if (a->p1.x >= xmin && a->p1.x <= xmax) {
+      if (b->p1.y >= ymin && b->p1.y <= ymax) {
         if (!out_p) return 1;
         out_p->x = a->p1.x;
         out_p->y = b->p1.y;
@@ -129,16 +166,56 @@ int calc_intersections(
   return 0;
 }
 
+void print_closest_intersection(
+  size_t n_intersections,
+  struct point *intersections
+) {
+  struct point min = { INT_MAX / 2, INT_MAX / 2 };
+
+  if (!n_intersections) return;
+  if (!intersections) return;
+  printf("n_intersections: %lu\n", n_intersections);
+  while (--n_intersections) {
+    struct point cur;
+
+    cur = *intersections++;
+    printf(
+      "cur:( % 5d % 5d ): % 5d  ||  min:( % 5d % 5d ): % 5d\n",
+      cur.x,
+      cur.y,
+      abs(cur.x) + abs(cur.y),
+      min.x,
+      min.y,
+      abs(min.x) + abs(min.y)
+    );
+    if ((abs(cur.x) + abs(cur.y)) < (abs(min.x) + abs(min.y))) {
+      if (abs(cur.x) + abs(cur.y) > 0) min = cur;
+    }
+  }
+  printf("( % 4d % 4d )\n", min.x, min.y);
+}
+
 int main(int arg, char **argv) {
   char **first_inputs = NULL, **second_inputs = NULL;
-  char first[] = "R75,D30,R83,U83,L12,D49,R71,U7,L72";
-  char second[] = "U62,R66,U55,R34,D71,R55,D58,R83";
-  size_t i, n_first, n_second, n_first_lines, n_second_lines, n_intersections;
+  char *first, *second;
+  size_t i, first_size, second_size, n_first, n_second;
+  size_t n_first_lines, n_second_lines, n_intersections = 0;
   struct line *first_lines = NULL, *second_lines = NULL;
   struct point *intersections;
 
+  first = read_input("../3/first.txt", &first_size);
+  second = read_input("../3/second.txt", &second_size);
+  /* first = malloc(2048); */
+  /* second = malloc(2048); */
+  /* strcpy(first, "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51"); */
+  /* strcpy(second, "U98,R91,D20,R16,D67,R40,U7,R15,U6,R7"); */
+  if (!first) return -1;
+  if (!second) return -1;
   if (get_input_list(first, &n_first, &first_inputs)) return -1;
   if (get_input_list(second, &n_second, &second_inputs)) return -1;
+  /* Remove \n at the end */
+  first_size -= 1;
+  second_size -= 1;
   if (calc_line_segs(
         n_first,
         first_inputs,
@@ -165,13 +242,16 @@ int main(int arg, char **argv) {
       )) {
     return -1;
   }
-  for (i = 0; i < n_intersections; ++i) {
-    printf("( % 4d % 4d )\n", intersections[i].x, intersections[i].y);
-  }
+  print_closest_intersection(n_intersections, intersections);
+  /* for (i = 0; i < n_intersections; ++i) { */
+  /*   printf("( % 4d % 4d )\n", intersections[i].x, intersections[i].y); */
+  /* } */
   free(intersections);
   free(first_lines);
   free(second_lines);
   free(first_inputs);
   free(second_inputs);
+  free(first);
+  free(second);
   return 0;
 }
